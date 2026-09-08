@@ -2,62 +2,54 @@
 set -e
 
 # ==========================================
-# GL-BE3600 专属：USB 3.0 存储挂载点配置
+# 安装配置：直接安装至 GL.iNet 内置存储
 # ==========================================
-USB_MOUNT_DIR="/tmp/mountd/disk1_part1"
-INSTALL_DIR="${USB_MOUNT_DIR}/open-box"
-LINK_DIR="/usr/share/open-box"
-REQUIRED_SPACE_MB=512
+INSTALL_DIR="/usr/share/open-box"
+REQUIRED_SPACE_MB=50  # 可根据实际核心大小调整门槛（你的设备剩余 185MB，完全足够）
 
 echo "=========================================="
-echo "    Open-Box (GL-BE3600 USB3.0) 安装脚本   "
+echo "   Open-Box (GL.iNet 本地存储免内存检测版)  "
 echo "=========================================="
 
-# 1. 检查是否为 OpenWrt / GL.iNet 系统
+# 1. 检查是否为 OpenWrt / GL.iNet 环境
 if [ ! -f "/etc/openwrt_release" ]; then
     echo "错误: 当前系统不是 OpenWrt/GL.iNet，终止安装。"
     exit 1
 fi
 
-# 2. 检查 USB 3.0 挂载点是否存在
-echo "--> 检查 USB 存储挂载点..."
-if [ ! -d "$USB_MOUNT_DIR" ]; then
-    echo "错误: 未找到 USB 挂载路径 ${USB_MOUNT_DIR}！"
-    echo "请确认 U 盘已成功插入并在 GL.iNet 后台识别。"
-    exit 1
+# 2. 检测系统内置 overlay 存储空间
+echo "--> 检查系统内置存储空间..."
+# 提取 /overlay 挂载点的可用空间(KB)
+if df -k /overlay >/dev/null 2>&1; then
+    AVAILABLE_SPACE_KB=$(df -k /overlay | awk 'NR==2 {print $4}')
+else
+    AVAILABLE_SPACE_KB=$(df -k / | awk 'NR==2 {print $4}')
 fi
 
-# 3. 检查 U 盘剩余空间
-echo "--> 检查 USB 存储剩余空间..."
-AVAILABLE_SPACE_KB=$(df -k "$USB_MOUNT_DIR" | awk 'NR==2 {print $4}')
 AVAILABLE_SPACE_MB=$((AVAILABLE_SPACE_KB / 1024))
-
-echo "USB 挂载点 (${USB_MOUNT_DIR}) 剩余可用空间: ${AVAILABLE_SPACE_MB} MB"
+echo "内置存储剩余可用空间: ${AVAILABLE_SPACE_MB} MB"
 
 if [ "$AVAILABLE_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
-    echo "错误: U 盘空间不足！Open-Box 需要至少 ${REQUIRED_SPACE_MB} MB 空间。"
+    echo "错误: 系统内置存储空间不足！需要至少 ${REQUIRED_SPACE_MB} MB 空间。"
     exit 1
 fi
 
-# 4. 创建 USB 安装目录与软链接
-echo "--> 准备安装目录..."
+# ==========================================
+# [已注销/删除 内存 (RAM) 检测]
+# 不再检查 free -m 或 /proc/meminfo
+# ==========================================
+
+# 3. 创建本地安装目录
+echo "--> 准备安装路径 (${INSTALL_DIR})..."
 mkdir -p "$INSTALL_DIR"
-
-# 清理旧的系统路径，并绑定软链接到 U 盘
-if [ -L "$LINK_DIR" ] || [ -d "$LINK_DIR" ]; then
-    rm -rf "$LINK_DIR"
-fi
-ln -s "$INSTALL_DIR" "$LINK_DIR"
-echo "已建立系统链接: $LINK_DIR -> $INSTALL_DIR"
-
-# 5. 切换到 U 盘目录执行后续安装
 cd "$INSTALL_DIR"
-echo "--> 正在 U 盘目录 (${INSTALL_DIR}) 中执行安装步骤..."
+
+echo "--> 开始在 GL.iNet 内置存储中下载并配置 Open-Box..."
 
 # ==========================================
-# (在此处拼接 Open-Box 原脚本的下载与启动逻辑)
+# (在此处接 Open-Box 官方脚本原本的下载与配置逻辑)
 # ==========================================
 
 echo "=========================================="
-echo "Open-Box 已成功安装到 U 盘 ($INSTALL_DIR)！"
+echo " Open-Box 已成功安装至 GL.iNet 内置存储！"
 echo "=========================================="
